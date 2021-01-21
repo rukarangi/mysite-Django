@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/css/ol.css" type="text/css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384- Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+      .map {
+        height: 750px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.5.0/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div class="row">
+      <div class="col-4">
+        <h2>My Map</h2>
+        <p id="coordinate"></p>
+        <button onclick="window.location.reload()">Reload</button>  
+        <ul id="coordList">
+          {% for coord in coords %}
+           <li>
+            <p>lat: {{ coord.latitude }}<br>lon: {{ coord.longitude }}</p>  
+            <button onclick="deleteRequest({{coord.id}})">Delete</button>
+            <button onclick="gotoonMap({{coord.longitude}}, {{ coord.latitude}}, {{ coord.zoom }})">Goto</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="col-8">
+        <div id="map" class="map"></div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      var lastViewLat = {{ lastview.latitude }};
+      var lastViewLon = {{ lastview.longitude }};
+      var lastViewZoom = {{ lastview.zoom }};
+      console.log(lastViewLat.toString())
+      
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.OSM()
+          })
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([37.41, 8.82]),
+          zoom: 4
+        })
+      });
+
+      map.getView().setCenter(ol.proj.transform([lastViewLat,lastViewLon], 'EPSG:4326', 'EPSG:3857'))
+      map.getView().setZoom(lastViewZoom);
+
+      function getCookie(name) {
+        var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : null;
+      }
+
+      function deleteRequest(id) {
+        var csrftoken = getCookie("csrftoken");
+
+        fetch("http://localhost:8000/map/create_point", {
+          method: "delete",
+          headers: {
+            "Content-type": "application/json",
+            "X-CSRFToken": csrftoken
+          },
+          credentials: "include",
+          body: '{"id":'+ id +'}'
+        });
+
+        window.location.reload()
+      }
+
+      function gotoonMap(lon, lat, zoom) {
+        map.getView().setCenter(ol.proj.transform([lat,lon], 'EPSG:4326', 'EPSG:3857'))
+        map.getView().setZoom(zoom);
+
+      }
+
+      map.on("click", function (evt) {
+        var coordinate = evt.coordinate;
+        var latLon = ol.proj.transform(coordinate, 'EPSG:3857', 'EPSG:4326');
+        console.log(latLon)
+
+        document.getElementById("coordinate").innerHTML = "lat: " + latLon[0] + "<br>lon: " + latLon[1];
+
+        var csrftoken = getCookie("csrftoken");
+
+        fetch("http://localhost:8000/map/create_point", {
+          method: 'post',
+          headers: {
+            "Content-type": "application/json",
+            "X-CSRFToken": csrftoken
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            "latitude": latLon[0],
+            "longitude": latLon[1],
+            "zoom": map.getView().getZoom()
+          }) 
+          });
+      });
+
+    </script>
+  </body>
+</html>
