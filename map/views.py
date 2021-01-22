@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 import json
 
@@ -14,6 +15,7 @@ def map(request):
     #print(coords)
     return render(request, "map/index.html", coords)
 
+@csrf_exempt
 def create_point(request):
     if request.method == "POST":
         coords = json.loads(request.body)
